@@ -1,6 +1,7 @@
 
 // Include the only file
 #include "CustomUI.h"
+#include "nx_touch.h"
 
 // Create two pages with their names
 static CustomUI::Page page1("Main");
