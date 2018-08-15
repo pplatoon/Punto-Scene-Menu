@@ -30,40 +30,36 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - icon.jpg
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
-VERSION_MAJOR := 0
-VERSION_MINOR := 1
-VERSION_PATCH := 0
-VERSION_PREID := alpha.1
 
-TARGET				:= $(notdir $(CURDIR))
-BUILD					:= build
-SOURCES				:= source lib
-DATA					:= data
-INCLUDES			:= include lib
-EXEFS_SRC			:= exefs_src
-APP_TITLE			:= PrecisionUI Test
-APP_AUTHOR		:= PrecisionUI Dev Team
-APP_VERSION		:= $(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)-$(VERSION_PREID)
-NO_ICON				:= none
-ROMFS					:= romfs
+APP_TITLE := CustomUI test
+APP_AUTHOR := XorTroll
+APP_VERSION := Test
 
+ICON := Icon.jpg
+TARGET		:=	CustomUITest
+BUILD		:=	build
+SOURCES		:=	Source Source/CustomUI
+DATA		:=	data
+INCLUDES	:=	include
+EXEFS_SRC	:=	exefs_src
+ROMFS	:=	RomFS
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	:=	-g -Wall -O2 -ffunction-sections `sdl2-config --cflags` `freetype-config --cflags`\
+CFLAGS	:=	-g -W -O2 -fpermissive -ffunction-sections \
 			$(ARCH) $(DEFINES)
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__ 
+CFLAGS	+=	$(INCLUDE) -D__SWITCH__
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
+CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=c++11
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	= -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS	=	-specs=${DEVKITPRO}/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lSDL2_ttf -lSDL2_gfx -lSDL2 `sdl2-config --libs` `freetype-config --libs`
+LIBS	:= -lfreetype -lSDL2_mixer -lmodplug -lmpg123 -lvorbisidec -logg -lSDL2_ttf -lSDL2_gfx -lSDL2_image -lpng -ljpeg `sdl2-config --libs` `freetype-config --libs` -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -79,7 +75,7 @@ LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-export OUTPUT	:=	$(CURDIR)/dist/$(TARGET)
+export OUTPUT	:=	$(CURDIR)/$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
@@ -109,7 +105,6 @@ endif
 export OFILES_BIN	:=	$(addsuffix .o,$(BINFILES))
 export OFILES_SRC	:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 export OFILES 	:=	$(OFILES_BIN) $(OFILES_SRC)
-
 export HFILES_BIN	:=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
@@ -138,7 +133,7 @@ ifeq ($(strip $(NO_ICON)),)
 endif
 
 ifeq ($(strip $(NO_NACP)),)
-	export NROFLAGS += --nacp=$(OUTPUT).nacp
+	export NROFLAGS += --nacp=$(CURDIR)/$(TARGET).nacp
 endif
 
 ifneq ($(APP_TITLEID),)
@@ -155,26 +150,20 @@ endif
 all: $(BUILD)
 
 $(BUILD):
-	$(info $$TARGET is   [${TARGET}])
-	$(info $$OUTPUT is   [${OUTPUT}])
-	$(info $$BUILD is    [${BUILD}])
-	$(info $$OFILES is   [${OFILES}])
-	$(info $$NROFLAGS is [${NROFLAGS}])
 	@[ -d $@ ] || mkdir -p $@
-	@[ -d dist ] || mkdir -p dist
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) dist/$(TARGET).pfs0 dist/$(TARGET).nso dist/$(TARGET).nro dist/$(TARGET).nacp dist/$(TARGET).elf dist
+	@rm -fr $(BUILD) $(TARGET).pfs0 $(TARGET).nso $(TARGET).nro $(TARGET).nacp $(TARGET).elf
 
 
 #---------------------------------------------------------------------------------
 else
 .PHONY:	all
 
-DEPENDS	:=	$(OFILES:.o=.d)	
+DEPENDS	:=	$(OFILES:.o=.d)
 
 #---------------------------------------------------------------------------------
 # main targets
