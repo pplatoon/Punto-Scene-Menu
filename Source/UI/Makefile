@@ -31,9 +31,9 @@ include $(DEVKITPRO)/libnx/switch_rules
 #     - <libnx folder>/default_icon.jpg
 #---------------------------------------------------------------------------------
 
-APP_TITLE := CustomUI test
-APP_AUTHOR := XorTroll
-APP_VERSION := Test
+APP_TITLE := Punto Scene Menu
+APP_AUTHOR := D3fau4
+APP_VERSION := 0.1
 
 ICON := Icon.jpg
 TARGET		:=	CustomUITest
