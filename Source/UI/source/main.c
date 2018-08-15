@@ -6,19 +6,19 @@ int main(int argc, char **argv) {
   PUI_Init();
   PUI_DrawDividers(true);
   PUI_DrawTitle(true);
-  PUI_SetTitle("PrecisionUI Test");
+  PUI_SetTitle("Punto Scene Menu");
   while(appletMainLoop()) {
     PUI_Update();
-    PUI_Element_Sidebar(6, "First", "Second", "Third", "~~~DIVIDER~~~", "Fourth", "Fifth");
-    char* str = "You're on the first page!";
+    PUI_Element_Sidebar(6, "Test", "Test2", "Test 3", "~~~DIVIDER~~~", "test 4", "Test 5");
+    char* str = "Index";
     if (SIDEBAR_INDEX == 1) {
-      str = "Now the second!";
+      str = "Segundo";
     } else if (SIDEBAR_INDEX == 2) {
-      str = "Now the third!";
+      str = "Tercero";
     } else if (SIDEBAR_INDEX == 4) {
       str = "Now you're on the fourth, and you jumped over the divider!";
     } else if (SIDEBAR_INDEX == 5) {
-      str = "The fifth now!";
+      str = "Quinto";
     }
     char* str2 = "Not tapped";
     u32 touch_count = hidTouchCount();
