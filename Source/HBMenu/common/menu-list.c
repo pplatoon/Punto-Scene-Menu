@@ -30,7 +30,6 @@ static void menuAddEntry(menuEntry_s* me) {
         m->firstEntry = me;
         m->lastEntry = me;
     }
-    m->xPos = 0;
     m->nEntries ++;
 }
 
@@ -99,15 +98,15 @@ int menuScan(const char* target) {
     {
         menuEntry_s* me = NULL;
         bool shortcut = false;
-        if (dp->d_name[0]=='.')
-            continue;
+        /*if (entry->attributes & FS_ATTRIBUTE_HIDDEN) 
+            continue;*/
 
         bool entrytype=0;
 
         memset(tmp_path, 0, sizeof(tmp_path));
-        snprintf(tmp_path, sizeof(tmp_path)-1, "%s/%s", s_menu[!s_curMenu].dirname, dp->d_name);
+        snprintf(tmp_path, sizeof(tmp_path)-1, "%s%s", s_menu[!s_curMenu].dirname, dp->d_name);
 
-        #ifdef __SWITCH__
+        #ifdef SWITCH
         fsdev_dir_t* dirSt = (fsdev_dir_t*)dir->dirData->dirStruct;
         FsDirectoryEntry* entry = &dirSt->entry_data[dirSt->index];
 
@@ -134,7 +133,6 @@ int menuScan(const char* target) {
             continue;
 
         strncpy(me->path, tmp_path, sizeof(me->path)-1);
-        me->path[sizeof(me->path)-1] = 0;
         if (menuEntryLoad(me, dp->d_name, shortcut))
             menuAddEntry(me);
         else

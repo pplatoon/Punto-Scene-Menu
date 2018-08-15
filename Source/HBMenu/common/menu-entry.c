@@ -17,11 +17,6 @@ void menuEntryFree(menuEntry_s* me) {
         me->icon_gfx = NULL;
     }
 
-    if (me->icon_gfx_small) {
-        free(me->icon_gfx_small);
-        me->icon_gfx_small = NULL;
-    }
-
     if (me->nacp) {
         free(me->nacp);
         me->nacp = NULL;
@@ -35,7 +30,7 @@ bool fileExists(const char* path) {
 
 static bool menuEntryLoadEmbeddedIcon(menuEntry_s* me) {
     NroHeader header;
-    NroAssetHeader asset_header;
+    AssetHeader asset_header;
 
     FILE* f = fopen(me->path, "rb");
     if (!f) return false;
@@ -50,8 +45,8 @@ static bool menuEntryLoadEmbeddedIcon(menuEntry_s* me) {
     fseek(f, header.size, SEEK_SET);
 
     if (fread(&asset_header, sizeof(asset_header), 1, f) != 1
-        || asset_header.magic != NROASSETHEADER_MAGIC
-        || asset_header.version > NROASSETHEADER_VERSION
+        || asset_header.magic != ASSETHEADER_MAGICNUM
+        || asset_header.version > ASSETHEADER_VERSION
         || asset_header.icon.offset == 0
         || asset_header.icon.size == 0)
     {
@@ -75,7 +70,7 @@ static bool menuEntryLoadEmbeddedIcon(menuEntry_s* me) {
 
 static bool menuEntryLoadEmbeddedNacp(menuEntry_s* me) {
     NroHeader header;
-    NroAssetHeader asset_header;
+    AssetHeader asset_header;
 
     FILE* f = fopen(me->path, "rb");
     if (!f) return false;
@@ -90,8 +85,8 @@ static bool menuEntryLoadEmbeddedNacp(menuEntry_s* me) {
     fseek(f, header.size, SEEK_SET);
 
     if (fread(&asset_header, sizeof(asset_header), 1, f) != 1
-        || asset_header.magic != NROASSETHEADER_MAGIC
-        || asset_header.version > NROASSETHEADER_VERSION
+        || asset_header.magic != ASSETHEADER_MAGICNUM
+        || asset_header.version > ASSETHEADER_VERSION
         || asset_header.nacp.offset == 0
         || asset_header.nacp.size == 0)
     {
@@ -139,37 +134,8 @@ bool menuEntryLoad(menuEntry_s* me, const char* name, bool shortcut) {
     strcpy(me->name, name);
     if (me->type == ENTRY_TYPE_FOLDER)
     {
-        //Check for <dirpath>/<dirname>.nro
         snprintf(tempbuf, sizeof(tempbuf)-1, "%.*s/%.*s.nro", (int)sizeof(tempbuf)/2, me->path, (int)sizeof(tempbuf)/2-7, name);
         bool found = fileExists(tempbuf);
-
-        //Use the first .nro found in the directory, if there's only 1 NRO in the directory. Only used for paths starting with "sdmc:/switch/".
-        if (!found && strncmp(me->path, "sdmc:/switch/", 13)==0) {
-            DIR* dir;
-            struct dirent* dp;
-            u32 nro_count=0;
-
-            dir = opendir(me->path);
-            if (dir) {
-                while ((dp = readdir(dir))) {
-                    if (dp->d_name[0]=='.')//Check this here so that it's consistent with menuScan().
-                        continue;
-
-                    const char* ext = getExtension(dp->d_name);
-                    if (strcasecmp(ext, ".nro")==0) {
-                        nro_count++;
-                        if (nro_count>1) {
-                            found = 0;
-                            break;
-                        }
-
-                        snprintf(tempbuf, sizeof(tempbuf)-1, "%.*s/%.*s", (int)sizeof(tempbuf)/2, me->path, (int)sizeof(tempbuf)/2-7, dp->d_name);
-                        found = fileExists(tempbuf);
-                    }
-                }
-                closedir(dir);
-            }
-        }
 
         if (found)
         {
@@ -177,14 +143,15 @@ bool menuEntryLoad(menuEntry_s* me, const char* name, bool shortcut) {
             shortcut = false;
             me->type = ENTRY_TYPE_FILE;
             strcpy(me->path, tempbuf);
-        }
+        } /*else
+            strcpy(me->name, textGetString(StrId_Directory));*/
     }
 
     if (me->type == ENTRY_TYPE_FILE)
     {
         strcpy(me->name, name);
         strcpy(me->author, textGetString(StrId_DefaultPublisher));
-        strcpy(me->version, "1.0.0");
+        strcpy(me->version, textGetString(StrId_DefaultVersion));
 
         //shortcut_s sc;
 
@@ -334,147 +301,16 @@ void menuEntryParseIcon(menuEntry_s* me) {
     memcpy(me->icon_gfx, imageptr, imagesize);
 
     njDone();
-
-    me->icon_gfx_small = downscaleImg(me->icon_gfx, 256, 256, 140, 140, IMAGE_MODE_RGB24);
-}
-
-uint8_t *downscaleImg(const uint8_t *image, int srcWidth, int srcHeight, int destWidth, int destHeight, ImageMode mode) {
-    uint8_t *out;
-
-    switch (mode) {
-        case IMAGE_MODE_RGBA32:
-            out = (uint8_t*)malloc(destWidth*destHeight*4);
-            break;
-
-        default:
-            out = (uint8_t*)malloc(destWidth*destHeight*3);
-            break;
-    }
-
-    if (out == NULL) {
-        return NULL;
-    }
-
-    int tmpx, tmpy;
-    int pos;
-    float sourceX, sourceY;
-    float xScale = (float)srcWidth / (float)destWidth;
-    float yScale = (float)srcHeight / (float)destHeight;
-    int pixelX, pixelY;
-    uint8_t r1, r2, r3, r4;
-    uint8_t g1, g2, g3, g4;
-    uint8_t b1, b2, b3, b4;
-    uint8_t a1, a2, a3, a4;
-    float fx, fy, fx1, fy1;
-    int w1, w2, w3, w4;
-
-    for (tmpx=0; tmpx<destWidth; tmpx++) {
-        for (tmpy=0; tmpy<destHeight; tmpy++) {
-            sourceX = tmpx * xScale;
-            sourceY = tmpy * yScale;
-            pixelX = (int)sourceX;
-            pixelY = (int)sourceY;
-
-            // get colours from four surrounding pixels
-            if (mode == IMAGE_MODE_RGBA32) 
-                pos = ((pixelY + 0) * srcWidth + pixelX + 0) * 4;
-            else
-                pos = ((pixelY + 0) * srcWidth + pixelX + 0) * 3;
-
-            r1 = image[pos+0];
-            g1 = image[pos+1];
-            b1 = image[pos+2];
-            
-            if (mode == IMAGE_MODE_RGBA32) 
-                a1 = image[pos+3];
-
-
-            if (mode == IMAGE_MODE_RGBA32) 
-                pos = ((pixelY + 0) * srcWidth + pixelX + 1) * 4;
-            else
-                pos = ((pixelY + 0) * srcWidth + pixelX + 1) * 3;
-
-            r2 = image[pos+0];
-            g2 = image[pos+1];
-            b2 = image[pos+2];
-
-            if (mode == IMAGE_MODE_RGBA32) 
-                a2 = image[pos+3];
-
-
-            if (mode == IMAGE_MODE_RGBA32) 
-                pos = ((pixelY + 1) * srcWidth + pixelX + 0) * 4;
-            else
-                pos = ((pixelY + 1) * srcWidth + pixelX + 0) * 3;
-
-            r3 = image[pos+0];
-            g3 = image[pos+1];
-            b3 = image[pos+2];
-
-            if (mode == IMAGE_MODE_RGBA32) 
-                a3 = image[pos+3];
-
-
-            if (mode == IMAGE_MODE_RGBA32) 
-                pos = ((pixelY + 1) * srcWidth + pixelX + 1) * 4;
-            else
-                pos = ((pixelY + 1) * srcWidth + pixelX + 1) * 3;
-
-            r4 = image[pos+0];
-            g4 = image[pos+1];
-            b4 = image[pos+2];
-
-            if (mode == IMAGE_MODE_RGBA32) 
-                a4 = image[pos+3];
-
-            // determine weights
-            fx = sourceX - pixelX;
-            fy = sourceY - pixelY;
-            fx1 = 1.0f - fx;
-            fy1 = 1.0f - fy;
-
-            w1 = (int)(fx1*fy1*256.0);
-            w2 = (int)(fx*fy1*256.0);
-            w3 = (int)(fx1*fy*256.0);
-            w4 = (int)(fx*fy*256.0);
- 
-            // set output pixels
-            if (mode == IMAGE_MODE_RGBA32) 
-                pos = ((tmpy*destWidth) + tmpx) * 4;
-            else
-                pos = ((tmpy*destWidth) + tmpx) * 3;
-
-            out[pos+0] = (uint8_t)((r1 * w1 + r2 * w2 + r3 * w3 + r4 * w4) >> 8);
-            out[pos+1] = (uint8_t)((g1 * w1 + g2 * w2 + g3 * w3 + g4 * w4) >> 8);
-            out[pos+2] = (uint8_t)((b1 * w1 + b2 * w2 + b3 * w3 + b4 * w4) >> 8);
-
-            if (mode == IMAGE_MODE_RGBA32) 
-                out[pos+3] = (uint8_t)((a1 * w1 + a2 * w2 + a3 * w3 + a4 * w4) >> 8);
-        }
-    }
-
-    return out;
 }
 
 void menuEntryParseNacp(menuEntry_s* me) {
-    NacpLanguageEntry *langentry = NULL;
+    int lang = 0;//TODO: Update this once libnx supports settings get-language.
 
     if (me->nacp==NULL) return;
 
+    strncpy(me->name, me->nacp->lang[lang].name, sizeof(me->name)-1);
+    strncpy(me->author, me->nacp->lang[lang].author, sizeof(me->author)-1);
     strncpy(me->version, me->nacp->version, sizeof(me->version)-1);
-
-    #ifdef __SWITCH__
-    Result rc=0;
-    rc = nacpGetLanguageEntry(me->nacp, &langentry);
-
-    if (R_SUCCEEDED(rc) && langentry!=NULL) {
-    #else
-    langentry = &me->nacp->lang[0];
-    if (1) {
-    #endif
-        strncpy(me->name, langentry->name, sizeof(me->name)-1);
-        strncpy(me->author, langentry->author, sizeof(me->author)-1);
-    }
 
     free(me->nacp);
     me->nacp = NULL;
