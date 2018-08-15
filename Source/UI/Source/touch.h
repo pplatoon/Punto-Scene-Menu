@@ -1,6 +1,15 @@
 #pragma once
-#include "precisionui.h"
 
-bool PUI_Touch_Touching(u32 touch_count, int x1, int y1, int x2, int y2);
-int PUI_Touch_Sidebar_Touching(u32 touch_count);
-int PUI_Touch_Element_Touching(u32 touch_count);
+#include <switch.h>
+#include "../common/common.h"
+
+struct touchInfo_s {
+    bool gestureInProgress;
+    touchPosition firstTouch;
+    touchPosition prevTouch;
+    bool isTap;
+    int initMenuXPos;
+    int initMenuIndex;
+};
+
+void handleTouch(menu_s* menu);
